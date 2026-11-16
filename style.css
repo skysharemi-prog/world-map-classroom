@@ -41,3 +41,9 @@
  .intro{grid-column:1;grid-row:1}.identity{grid-column:2;grid-row:1}.workspace{grid-column:1;grid-row:2 / 4}
  .tray{grid-column:2;grid-row:2;max-height:none}.actions{grid-column:2;grid-row:3}.chip{flex-basis:calc((100% - 5px)/2)}
 }
+
+/* Hide the image margin captions without altering map geometry or label coordinates. */
+#baseMap{clip-path:inset(4.5% 0 4.8% 0)}
+#mapHint{display:none}.maphead button{margin-left:auto}
+.source{display:block;text-align:left;line-height:1.5;margin:4px 18px 12px;overflow-wrap:anywhere}.source span{display:block}
+@media(max-width:700px),(max-height:500px) and (pointer:coarse){.source{display:block;flex-shrink:0;font-size:9px;margin:3px 9px 6px;line-height:1.25}}
