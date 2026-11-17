@@ -18,6 +18,28 @@ function cleanDrag(){
   document.querySelectorAll('.drop-ready').forEach(el=>el.classList.remove('drop-ready'));
   ghost?.remove();ghost=null;drag=null;
 }
+// Share one hit test for highlighting and release, including a forgiving margin.
+function mapDropAt(x,y){
+  const direct=document.elementFromPoint(x,y)?.closest('[data-target],.tray');
+  if(direct)return direct;
+  const panel=$('mapScroll').getBoundingClientRect();
+  if(x<panel.left||x>panel.right||y<panel.top||y>panel.bottom)return null;
+  let best=null,bestDistance=Infinity;
+  for(const target of document.querySelectorAll('[data-target]')){
+    const r=target.getBoundingClientRect();
+    if(r.right<panel.left||r.left>panel.right||r.bottom<panel.top||r.top>panel.bottom)continue;
+    const dx=Math.max(r.left-x,0,x-r.right),dy=Math.max(r.top-y,0,y-r.bottom);
+    const distance=Math.hypot(dx,dy);
+    if(distance<=24&&distance<bestDistance){best=target;bestDistance=distance;}
+  }
+  return best;
+}
+let suppressMapClickUntil=0;
+document.addEventListener('click',e=>{
+  if(performance.now()<suppressMapClickUntil&&e.target.closest('[data-target],.chip')){
+    e.preventDefault();e.stopImmediatePropagation();
+  }
+},true);
 function dragFrame(){
   if(!drag?.moved)return;
   const d=drag,edge=55;
@@ -25,7 +47,7 @@ function dragFrame(){
   const sc=$('mapScroll'),r=sc.getBoundingClientRect();
   if(d.cy>r.top&&d.cy<r.bottom&&d.cx>r.left&&d.cx<r.right){if(d.cx<r.left+edge)sc.scrollLeft-=12;else if(d.cx>r.right-edge)sc.scrollLeft+=12;if(d.cy<r.top+35)sc.scrollTop-=8;else if(d.cy>r.bottom-35)sc.scrollTop+=8;}
   document.querySelectorAll('.drop-ready').forEach(el=>el.classList.remove('drop-ready'));
-  document.elementFromPoint(d.cx,d.cy)?.closest('[data-target],.tray')?.classList.add('drop-ready');
+  mapDropAt(d.cx,d.cy)?.classList.add('drop-ready');
   d.frame=requestAnimationFrame(dragFrame);
 }
 function enableDrag(element,getId){
@@ -44,13 +66,14 @@ function enableDrag(element,getId){
       ghost=document.createElement('div');ghost.className='ghost';ghost.textContent=items.find(i=>i.id===drag.id).label;document.body.append(ghost);
       drag.frame=requestAnimationFrame(dragFrame);
     }
+    if(drag.moved)e.preventDefault();
     if(ghost){ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';}
   });
   element.addEventListener('pointerup',e=>{
     if(!drag||drag.element!==element||drag.pointer!==e.pointerId)return;
     const {id,moved}=drag;
-    const drop=moved?document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-target],.tray'):null;
-    if(moved)suppressClickUntil=performance.now()+600;
+    const drop=moved?mapDropAt(e.clientX,e.clientY):null;
+    if(moved){e.preventDefault();suppressMapClickUntil=suppressClickUntil=performance.now()+600;}
     cleanDrag();
     if(drop?.dataset.target)place(drop.dataset.target,id);
     else if(drop?.classList.contains('tray'))place(null,id);
